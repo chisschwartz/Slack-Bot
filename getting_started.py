@@ -32,34 +32,33 @@ class WelcomeMessage:
 
     DIVIDER = {'type' : 'divider'}
 
-    def __init__(self, channel,):
+    def __init__(self, channel):
         self.channel = channel
         self.icon_emoji = ':robot_face:'
         self.timestamp = ''
         self.completed = False
-    
+
     def get_message(self):
-            return{
-                'ts': self.timestamp,
-                'channel': self.channel,
-                'username': 'Welcome Robot!',
-                'icon_emoji': self.icon_emoji,
-                'blocks' : [
-                    self.START_TEXT,
-                    self.DIVIDER,
-                    self._get_reaction_task()
-                ]
-            }
+        return {
+            'ts': self.timestamp,
+            'channel': self.channel,
+            'username': 'Welcome Robot!',
+            'icon_emoji': self.icon_emoji,
+            'blocks': [
+                self.START_TEXT,
+                self.DIVIDER,
+                self._get_reaction_task()
+            ]
+        }
 
- 
     def _get_reaction_task(self):
-            checkmark = ':white_check_mark:'
-            if not self.completed:
-                checkmark = ':white_large_square:'
+        checkmark = ':white_check_mark:'
+        if not self.completed:
+            checkmark = ':white_large_square:'
 
-                text = f'{checkmark} *React to this message*'
+        text = f'{checkmark} *React to this message!*'
 
-                return {'type': 'section', 'text' : {'type' : 'mrkdwn', 'text' : text}}
+        return {'type': 'section', 'text': {'type': 'mrkdwn', 'text': text}}
         
 def send_welcome_message(channel, user):
     if channel not in welcome_messages:
@@ -92,13 +91,21 @@ def message(payload):
             send_welcome_message(f'@{user_id}', user_id)
         # client.chat_postMessage(channel=channel_id, text=text)
 
-# @slack_event_adapter.on('reaction_added')
-# def reaction(payload):
-#     event = payload.get('event', {})
-#     channel_id = event.get('channel')
-#     user_id = event.get('user')
+@ slack_event_adapter.on('reaction_added')
+def reaction(payload):
+    event = payload.get('event', {})
+    channel_id = event.get('item', {}).get('channel')
+    user_id = event.get('user')
 
-#     if channel_id not in welcome_messages:
+    if f'@{user_id}' not in welcome_messages:
+        return
+
+    welcome = welcome_messages[f'@{user_id}'][user_id]
+    welcome.completed = True
+    welcome.channel = channel_id
+    message = welcome.get_message()
+    updated_message = client.chat_update(**message)
+    welcome.timestamp = updated_message['ts']
 
 @app.route('/message-count', methods=['POST'])
 def message_count():
@@ -110,5 +117,5 @@ def message_count():
     client.chat_postMessage(channel=channel_id, text=f"Message: {message_count}")
     return Response(), 200
 
-if __name__ == "__main__":
-    app.run(debug=True)
+# if __name__ == "__main__":
+#     app.run(debug=True)
